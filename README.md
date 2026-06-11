@@ -2,6 +2,8 @@
 
 A browser-only 3D CIELAB color space visualizer for CxF color standard files.
 
+Live demo: https://rcongdo.github.io/delta-e-visualizer/
+
 ## What It Does
 
 - Upload a `.cxf` file locally in the browser.
