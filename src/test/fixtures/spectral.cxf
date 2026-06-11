@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CxF>
+  <ObjectCollection>
+    <Object ID="spectral-green" Name="Spectral Green">
+      <ColorSpecification>
+        <ReflectanceSpectrum>
+          <Sample wavelength="400" value="0.08" />
+          <Sample wavelength="410" value="0.08" />
+          <Sample wavelength="420" value="0.08" />
+          <Sample wavelength="430" value="0.08" />
+          <Sample wavelength="440" value="0.08" />
+          <Sample wavelength="450" value="0.09" />
+          <Sample wavelength="460" value="0.10" />
+          <Sample wavelength="470" value="0.12" />
+          <Sample wavelength="480" value="0.16" />
+          <Sample wavelength="490" value="0.24" />
+          <Sample wavelength="500" value="0.36" />
+          <Sample wavelength="510" value="0.48" />
+          <Sample wavelength="520" value="0.58" />
+          <Sample wavelength="530" value="0.62" />
+          <Sample wavelength="540" value="0.64" />
+          <Sample wavelength="550" value="0.61" />
+          <Sample wavelength="560" value="0.54" />
+          <Sample wavelength="570" value="0.44" />
+          <Sample wavelength="580" value="0.34" />
+          <Sample wavelength="590" value="0.25" />
+          <Sample wavelength="600" value="0.18" />
+          <Sample wavelength="610" value="0.14" />
+          <Sample wavelength="620" value="0.12" />
+          <Sample wavelength="630" value="0.10" />
+          <Sample wavelength="640" value="0.09" />
+          <Sample wavelength="650" value="0.08" />
+          <Sample wavelength="660" value="0.08" />
+          <Sample wavelength="670" value="0.08" />
+          <Sample wavelength="680" value="0.08" />
+          <Sample wavelength="690" value="0.08" />
+          <Sample wavelength="700" value="0.08" />
+        </ReflectanceSpectrum>
+      </ColorSpecification>
+    </Object>
+  </ObjectCollection>
+</CxF>

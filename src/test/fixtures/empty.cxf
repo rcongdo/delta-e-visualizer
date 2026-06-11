@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CxF>
+  <ObjectCollection>
+    <Object ID="no-color">
+      <Name>No Color Data</Name>
+      <ColorSpecification />
+    </Object>
+  </ObjectCollection>
+</CxF>
