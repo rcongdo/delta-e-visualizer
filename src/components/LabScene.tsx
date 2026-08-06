@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { labToSrgb } from "../color/lab";
 import { buildToleranceSurface } from "../tolerance/surface";
 import type { DeltaEFormula, LabColor, ResolvedColor } from "../types";
+import { labToSceneVector } from "./labSceneCoordinates";
 
 type LabSceneProps = {
   colors: ResolvedColor[];
@@ -31,10 +32,6 @@ type SceneState = {
 const axisLength = 145;
 const pointGeometry = new THREE.SphereGeometry(0.48, 16, 10);
 const comparisonGeometry = new THREE.SphereGeometry(0.72, 18, 12);
-
-function labToVector(lab: LabColor) {
-  return new THREE.Vector3(lab.a, lab.l, lab.b);
-}
 
 function labToThreeColor(lab: LabColor) {
   const rgb = labToSrgb(lab);
@@ -104,9 +101,10 @@ function makeToleranceGeometry(center: LabColor, formula: DeltaEFormula, toleran
 
   surface.vertices.forEach((vertex, index) => {
     const offset = index * 3;
-    positions[offset] = vertex.a;
-    positions[offset + 1] = vertex.l;
-    positions[offset + 2] = vertex.b;
+    const position = labToSceneVector(vertex);
+    positions[offset] = position.x;
+    positions[offset + 1] = position.y;
+    positions[offset + 2] = position.z;
   });
 
   const geometry = new THREE.BufferGeometry();
@@ -149,7 +147,7 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
     axes.add(createAxis(new THREE.Vector3(-axisLength, 50, 0), new THREE.Vector3(axisLength, 50, 0), 0xe46d4f));
     axes.add(createAxis(new THREE.Vector3(0, 50, -axisLength), new THREE.Vector3(0, 50, axisLength), 0x4d8ee5));
     axes.add(createAxisLabel("L*", new THREE.Vector3(0, 112, 0), "#f5f1e7"));
-    axes.add(createAxisLabel("a*", new THREE.Vector3(axisLength + 14, 50, 0), "#ff876b"));
+    axes.add(createAxisLabel("a*", labToSceneVector({ l: 50, a: axisLength + 14, b: 0 }), "#ff876b"));
     axes.add(createAxisLabel("b*", new THREE.Vector3(0, 50, axisLength + 14), "#72a8ff"));
     scene.add(axes);
 
@@ -256,7 +254,7 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
         color: pointColor,
       });
       const mesh = new THREE.Mesh(pointGeometry.clone(), material);
-      mesh.position.copy(labToVector(color.lab));
+      mesh.position.copy(labToSceneVector(color.lab));
       mesh.userData.colorId = color.id;
       state.pointsGroup.add(mesh);
       return mesh;
@@ -284,7 +282,7 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
       return;
     }
 
-    const selectedPoint = labToVector(selectedColor.lab);
+    const selectedPoint = labToSceneVector(selectedColor.lab);
     state.target.copy(selectedPoint);
 
     if (state.toleranceMesh) {
@@ -320,7 +318,7 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
     }
 
     state.comparisonMesh.visible = true;
-    state.comparisonMesh.position.copy(labToVector(comparisonLab));
+    state.comparisonMesh.position.copy(labToSceneVector(comparisonLab));
   }, [comparisonLab]);
 
   return (
