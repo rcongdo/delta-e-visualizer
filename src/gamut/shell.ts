@@ -1,7 +1,10 @@
 import { extractIsosurface } from "./marchingTetrahedra";
+import { smoothMesh } from "./smoothMesh";
 import type { GamutShell } from "./types";
 
 const STEP = 2;
+// Removes grid stair-stepping; vertices move ~0.4 ΔE76 on average (max ~2).
+const SMOOTHING_ITERATIONS = 10;
 const L_MIN = 0;
 const L_MAX = 100;
 const AB_MIN = -128;
@@ -12,10 +15,10 @@ const AB_MAX = 128;
  * surface where the round-trip error (CIE76) equals `cutoff`. Uses CIE76 so
  * the shell does not change shape when the user switches Delta E formula.
  *
- * The shell follows the classification field exactly. Where round-trip noise
- * sits near the cutoff (mostly in the shadows), it can contain tiny
- * single-sample islands and thin tunnels. This is intentional, so the drawn
- * boundary agrees with point status.
+ * The surface is then Taubin-smoothed to remove grid stair-stepping, so it
+ * follows the classification field to within about a grid step rather than
+ * exactly. Where round-trip noise sits near the cutoff (mostly in the
+ * shadows), it can still contain tiny islands and thin tunnels.
  */
 export function buildGamutShell(
   roundTrip: (labs: Float32Array) => { reproducedLabs: Float32Array },
@@ -49,5 +52,9 @@ export function buildGamutShell(
     );
   }
 
-  return extractIsosurface({ values, nx, ny, nz, origin: [L_MIN, AB_MIN, AB_MIN], step: [STEP, STEP, STEP] }, cutoff);
+  const surface = extractIsosurface(
+    { values, nx, ny, nz, origin: [L_MIN, AB_MIN, AB_MIN], step: [STEP, STEP, STEP] },
+    cutoff,
+  );
+  return smoothMesh(surface, SMOOTHING_ITERATIONS);
 }

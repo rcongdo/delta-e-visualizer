@@ -96,8 +96,9 @@ Built in the worker on profile load:
 
 1. Sample a Lab grid: L* 0–100, a* and b* −128–128, at about 2-unit spacing.
 2. Round-trip every grid point; the scalar field value is the CIE76 distance between input and reproduced Lab.
-3. Extract the isosurface at `IN_GAMUT_CUTOFF` with marching tetrahedra (no lookup tables or ambiguous cases; always closed). The shell follows the classification field exactly, so where round-trip noise sits near the cutoff (mostly in the shadows) it can contain tiny single-sample islands and thin tunnels; this is intentional so the drawn boundary agrees with point status.
-4. Return positions as Lab vertices plus triangle indices.
+3. Extract the isosurface at `IN_GAMUT_CUTOFF` with marching tetrahedra (no lookup tables or ambiguous cases; always closed). Where round-trip noise sits near the cutoff (mostly in the shadows) it can contain tiny single-sample islands and thin tunnels.
+4. Taubin-smooth the mesh (10 λ|μ passes) to remove grid stair-stepping. Vertices move about 0.4 ΔE76 on average (max about 2) and volume is preserved, so the shell agrees with point status to within about a grid step.
+5. Return positions as Lab vertices plus triangle indices.
 
 The shell is the same "reproducible" region the round-trip measures, so the drawn boundary and the green points agree. It does not depend on the profile's `gbd` tags, so uploads without them work too. The field uses CIE76 so the shell does not change shape when the user switches Delta E formula.
 

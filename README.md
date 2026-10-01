@@ -22,7 +22,7 @@ Live demo: https://rcongdo.github.io/delta-e-visualizer/
 ## Gamut Checking Notes
 
 - The 1.0 "in gamut" cutoff was measured, not picked arbitrarily. Even printable CMYK colors come back from an ICC round trip with some error, mostly in the shadows. That's where a profile's Lab → CMYK tables choose different black generation than its CMYK → Lab tables. Colors reproduced within tolerance but not exactly show amber. See `src/gamut/cutoff.ts` for the per-preset numbers.
-- The gamut shell is drawn where round-trip error equals the cutoff, so it always matches the green points. Where round-trip error hovers right around the cutoff, the shell can show small specks or thin tunnels.
+- The gamut shell is drawn where round-trip error equals the cutoff, then smoothed to remove grid stair-stepping, so it matches the green points to within about one ΔE. Where round-trip error hovers right around the cutoff, the shell can still show small specks or a ragged edge.
 
 ## Bundled Profiles
 
