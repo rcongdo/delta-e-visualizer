@@ -19,6 +19,10 @@ describe("classifyAchievableDeltaE", () => {
     expect(classifyAchievableDeltaE(value, tolerance)).toBe(status);
   });
 
+  it("treats NaN as out of tolerance", () => {
+    expect(classifyAchievableDeltaE(Number.NaN, 2)).toBe("out");
+  });
+
   it("never shows amber when the tolerance is below the cutoff", () => {
     expect(classifyAchievableDeltaE(0.4, 0.5)).toBe("in");
     expect(classifyAchievableDeltaE(0.6, 0.5)).toBe("out");

@@ -16,7 +16,7 @@ export const GAMUT_STATUS_LABELS: Record<GamutStatus, string> = {
 };
 
 export function classifyAchievableDeltaE(achievableDeltaE: number, tolerance: number): GamutStatus {
-  if (achievableDeltaE > tolerance) {
+  if (!(achievableDeltaE <= tolerance)) {
     return "out";
   }
   return achievableDeltaE <= IN_GAMUT_CUTOFF ? "in" : "within";

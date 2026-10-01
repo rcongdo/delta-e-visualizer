@@ -11,11 +11,13 @@ const PT_RGB = 4;
 const PT_CMY = 5;
 const PT_CMYK = 6;
 const PT_MCH1 = 15;
+const PT_MCH5 = 19;
 const PT_MCH15 = 29;
 
 /**
- * LittleCMS float formats use 0–100 for ink channels (CMY, CMYK, n-color)
- * and 0–1 for RGB and Gray, so displayScale brings both to familiar units.
+ * LittleCMS float formats use 0–100 only for ink spaces (CMY, CMYK and
+ * 5–15 channel n-color). RGB, Gray and 1–4 channel n-color use 0–1
+ * (lcms2 cmspack.c IsInkSpace), so displayScale brings all to familiar units.
  */
 export function describeColorSpace(pixelType: number): ColorSpaceDescription | null {
   switch (pixelType) {
@@ -34,7 +36,7 @@ export function describeColorSpace(pixelType: number): ColorSpaceDescription | n
     return {
       colorSpace: `${channelCount}CLR`,
       channelNames: Array.from({ length: channelCount }, (_, index) => `Ch${index + 1}`),
-      displayScale: 1,
+      displayScale: pixelType >= PT_MCH5 ? 1 : 100,
     };
   }
 

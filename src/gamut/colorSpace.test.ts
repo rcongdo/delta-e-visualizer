@@ -25,6 +25,17 @@ describe("describeColorSpace", () => {
     expect(describeColorSpace(29)?.colorSpace).toBe("15CLR");
   });
 
+  it("scales 1–4 channel n-color spaces as 0–1 floats and 5+ as ink percent", () => {
+    expect(describeColorSpace(15)?.displayScale).toBe(100);
+    expect(describeColorSpace(18)?.displayScale).toBe(100);
+    expect(describeColorSpace(19)?.displayScale).toBe(1);
+  });
+
+  it("returns null just outside the n-color range", () => {
+    expect(describeColorSpace(14)).toBeNull();
+    expect(describeColorSpace(30)).toBeNull();
+  });
+
   it("returns null for Lab, XYZ, and unknown spaces", () => {
     expect(describeColorSpace(10)).toBeNull();
     expect(describeColorSpace(9)).toBeNull();
