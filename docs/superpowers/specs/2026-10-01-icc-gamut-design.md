@@ -58,25 +58,37 @@ Pure function on the main thread:
 
 `achievableDeltaE = deltaE(selectedFormula, reproducedLab, targetLab)`
 
+Rules are checked in this order:
+
 | Status | Rule | Color |
 | --- | --- | --- |
-| In gamut | `achievableDeltaE <= IN_GAMUT_CUTOFF` | green |
-| Within tolerance | `IN_GAMUT_CUTOFF < achievableDeltaE <= tolerance` | amber |
 | Out of tolerance | `achievableDeltaE > tolerance` | red |
+| In gamut | `achievableDeltaE <= IN_GAMUT_CUTOFF` | green |
+| Within tolerance | otherwise | amber |
 
-If `tolerance <= IN_GAMUT_CUTOFF`, nothing is amber.
+Out of tolerance wins, so a color is never green while failing the tolerance. If `tolerance <= IN_GAMUT_CUTOFF`, nothing is amber.
 
 Changing the formula or tolerance re-runs classification only. Changing the profile or the CxF file re-runs the round-trip.
 
 ### In-gamut cutoff
 
-`IN_GAMUT_CUTOFF` is a fixed constant, set by measurement during implementation:
+`IN_GAMUT_CUTOFF = 1.0` (CIEDE2000), a fixed constant. The UI explains it in a tooltip; it is not user-editable.
 
-1. For each preset, generate a dense device grid, convert to Lab with the device → Lab transform (these colors are in gamut by definition).
-2. Round-trip those Lab values and compute CIEDE2000 between input and output.
-3. Set the cutoff to the 99th-percentile error across all seven presets, rounded up to the nearest 0.1.
+How it was chosen (measured 2026-10-01 with LittleCMS 2.16 via `lcms-wasm`): CMYK grids (levels 0/10/25/40/55/70/85/100, TAC ≤ 240%, 3,155 patches) were converted to Lab through each preset's A2B, then round-tripped with absolute colorimetric intent. Even though every patch is printable, round-trip error is not near zero — mostly in K-bearing shadows, where the profiles' B2A black generation differs from their A2B (e.g. CRPC3 0/100/0/100 returns as 51/74/50/80, ΔE00 3.7). Share of patches at or below each cutoff:
 
-Record the measured numbers and the chosen value in a comment beside the constant. The UI explains the cutoff in a tooltip; it is not user-editable.
+| Preset | ≤ 0.5 | ≤ 1.0 | ≤ 1.5 | p99 |
+| --- | --- | --- | --- | --- |
+| CRPC1 | 51% | 81% | 96% | 1.74 |
+| CRPC2 | 69% | 89% | 96% | 2.12 |
+| CRPC3 | 58% | 81% | 90% | 3.23 |
+| CRPC4 | 84% | 96% | 99% | 1.42 |
+| CRPC5 | 87% | 97% | 100% | 1.17 |
+| CRPC6 | 85% | 96% | 99% | 1.55 |
+| CRPC7 | 89% | 98% | 99% | 1.30 |
+
+A 99th-percentile rule (≈ 2.1) would exceed the default tolerance of 2 and hide the amber state. 1.0 keeps most printable colors green and shows printable-but-imperfect colors as amber ("reachable within tolerance, not exactly"). Nothing within tolerance is ever red, so the cutoff cannot cause a false failure.
+
+Record this summary in a comment beside the constant.
 
 ## Gamut Shell
 
