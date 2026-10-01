@@ -11,18 +11,20 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
+    "lcms-wasm": "1.0.5",
+    "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
     "three": "latest",
-    "lucide-react": "latest"
+    "typescript": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/three": "latest",
-    "vitest": "latest",
-    "jsdom": "latest"
+    "jsdom": "latest",
+    "vitest": "latest"
   }
 }

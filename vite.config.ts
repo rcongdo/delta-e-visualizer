@@ -4,6 +4,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: process.env.GITHUB_REPOSITORY === "rcongdo/delta-e-visualizer" ? "/delta-e-visualizer/" : "/",
   plugins: [react()],
+  worker: {
+    format: "es",
+  },
   test: {
     environment: "jsdom",
   },
