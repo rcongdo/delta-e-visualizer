@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { labToSrgb } from "../color/lab";
+import type { GamutShell } from "../gamut/types";
 import { buildToleranceSurface } from "../tolerance/surface";
 import type { DeltaEFormula, LabColor, ResolvedColor } from "../types";
 import { labToSceneVector } from "./labSceneCoordinates";
@@ -12,6 +13,12 @@ type LabSceneProps = {
   selectedId: string | null;
   formula: DeltaEFormula;
   tolerance: number;
+  /** Status colors by color id; null shows each point's own color. */
+  pointColors: Map<string, string> | null;
+  shell: GamutShell | null;
+  showShell: boolean;
+  /** Where the selected color lands after the profile round trip. */
+  reproducedLab: LabColor | null;
   onSelect: (id: string) => void;
 };
 
@@ -24,7 +31,10 @@ type SceneState = {
   pointMeshes: THREE.Mesh[];
   raycaster: THREE.Raycaster;
   renderer: THREE.WebGLRenderer;
+  reproductionLine: THREE.Line;
+  reproductionMarker: THREE.Mesh;
   scene: THREE.Scene;
+  shellMesh: THREE.Mesh | null;
   target: THREE.Vector3;
   toleranceMesh: THREE.Mesh | null;
 };
@@ -32,6 +42,7 @@ type SceneState = {
 const axisLength = 145;
 const pointGeometry = new THREE.SphereGeometry(0.48, 16, 10);
 const comparisonGeometry = new THREE.SphereGeometry(0.72, 18, 12);
+const reproductionGeometry = new THREE.SphereGeometry(0.7, 12, 8);
 
 function labToThreeColor(lab: LabColor) {
   const rgb = labToSrgb(lab);
@@ -114,7 +125,41 @@ function makeToleranceGeometry(center: LabColor, formula: DeltaEFormula, toleran
   return geometry;
 }
 
-export default function LabScene({ colors, comparisonLab, selectedId, formula, tolerance, onSelect }: LabSceneProps) {
+function makeShellGeometry(shell: GamutShell) {
+  const positions = new Float32Array(shell.positions.length);
+  const colors = new Float32Array(shell.positions.length);
+
+  for (let offset = 0; offset < shell.positions.length; offset += 3) {
+    const lab = { l: shell.positions[offset], a: shell.positions[offset + 1], b: shell.positions[offset + 2] };
+    const position = labToSceneVector(lab);
+    const color = labToThreeColor(lab);
+    positions[offset] = position.x;
+    positions[offset + 1] = position.y;
+    positions[offset + 2] = position.z;
+    colors[offset] = color.r;
+    colors[offset + 1] = color.g;
+    colors[offset + 2] = color.b;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.setIndex(new THREE.BufferAttribute(shell.indices, 1));
+  return geometry;
+}
+
+export default function LabScene({
+  colors,
+  comparisonLab,
+  selectedId,
+  formula,
+  tolerance,
+  pointColors,
+  shell,
+  showShell,
+  reproducedLab,
+  onSelect,
+}: LabSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<SceneState | null>(null);
   const selectedColor = useMemo(() => colors.find((color) => color.id === selectedId) ?? null, [colors, selectedId]);
@@ -167,6 +212,20 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
     comparisonMesh.visible = false;
     scene.add(comparisonMesh);
 
+    const reproductionLine = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthTest: false }),
+    );
+    reproductionLine.visible = false;
+    scene.add(reproductionLine);
+
+    const reproductionMarker = new THREE.Mesh(
+      reproductionGeometry.clone(),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true }),
+    );
+    reproductionMarker.visible = false;
+    scene.add(reproductionMarker);
+
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const target = new THREE.Vector3(0, 50, 0);
@@ -215,7 +274,10 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
       pointMeshes: [],
       raycaster,
       renderer,
+      reproductionLine,
+      reproductionMarker,
       scene,
+      shellMesh: null,
       target,
       toleranceMesh: null,
     };
@@ -320,6 +382,90 @@ export default function LabScene({ colors, comparisonLab, selectedId, formula, t
     state.comparisonMesh.visible = true;
     state.comparisonMesh.position.copy(labToSceneVector(comparisonLab));
   }, [comparisonLab]);
+
+  useEffect(() => {
+    const state = stateRef.current;
+    if (!state) {
+      return;
+    }
+
+    const labById = new Map(colors.map((color) => [color.id, color.lab]));
+    state.pointMeshes.forEach((mesh) => {
+      const id = mesh.userData.colorId as string;
+      const material = mesh.material as THREE.MeshBasicMaterial;
+      const statusColor = pointColors?.get(id);
+      const lab = labById.get(id);
+
+      if (statusColor) {
+        material.color.set(statusColor);
+      } else if (lab) {
+        material.color.copy(labToThreeColor(lab));
+      }
+    });
+  }, [colors, pointColors]);
+
+  useEffect(() => {
+    const state = stateRef.current;
+    if (!state) {
+      return;
+    }
+
+    if (state.shellMesh) {
+      state.scene.remove(state.shellMesh);
+      disposeObject(state.shellMesh);
+      state.shellMesh = null;
+    }
+    if (!shell) {
+      return;
+    }
+
+    const mesh = new THREE.Mesh(
+      makeShellGeometry(shell),
+      new THREE.MeshBasicMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    mesh.renderOrder = -1;
+    state.shellMesh = mesh;
+    state.scene.add(mesh);
+  }, [shell]);
+
+  useEffect(() => {
+    const mesh = stateRef.current?.shellMesh;
+    if (mesh) {
+      mesh.visible = showShell;
+    }
+  }, [shell, showShell]);
+
+  useEffect(() => {
+    const state = stateRef.current;
+    if (!state) {
+      return;
+    }
+
+    if (!selectedColor || !reproducedLab) {
+      state.reproductionLine.visible = false;
+      state.reproductionMarker.visible = false;
+      return;
+    }
+
+    const from = labToSceneVector(selectedColor.lab);
+    const to = labToSceneVector(reproducedLab);
+    const linePositions = state.reproductionLine.geometry.getAttribute("position") as THREE.BufferAttribute;
+    linePositions.setXYZ(0, from.x, from.y, from.z);
+    linePositions.setXYZ(1, to.x, to.y, to.z);
+    linePositions.needsUpdate = true;
+    state.reproductionLine.geometry.computeBoundingSphere();
+    state.reproductionLine.visible = true;
+
+    state.reproductionMarker.position.copy(to);
+    (state.reproductionMarker.material as THREE.MeshBasicMaterial).color.copy(labToThreeColor(reproducedLab));
+    state.reproductionMarker.visible = true;
+  }, [reproducedLab, selectedColor]);
 
   return (
     <div className="lab-scene" ref={mountRef}>
