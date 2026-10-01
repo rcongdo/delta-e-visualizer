@@ -24,24 +24,36 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
   const clientRef = useRef<GamutClient | null>(null);
   const loadSequenceRef = useRef(0);
+  const mountedRef = useRef(false);
+  const loadedProfileIdRef = useRef<number | null>(null);
   const [selection, setSelection] = useState<GamutSelection>({ kind: "none" });
   const [pendingSelection, setPendingSelection] = useState<GamutSelection | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState<{ info: ProfileInfo; shell: GamutShell } | null>(null);
+  const [loaded, setLoaded] = useState<{ profileId: number; info: ProfileInfo; shell: GamutShell } | null>(null);
   const [reproductions, setReproductions] = useState<Map<string, Reproduction> | null>(null);
 
   const getClient = useCallback(() => {
+    if (!mountedRef.current) {
+      throw new Error("Gamut profile hook is unmounted.");
+    }
     clientRef.current ??= createGamutClient();
     return clientRef.current;
   }, []);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       clientRef.current?.dispose();
       clientRef.current = null;
-    },
-    [],
-  );
+      loadedProfileIdRef.current = null;
+    };
+  }, []);
+
+  // Best effort: a failed release only means the worker keeps an unused engine.
+  const releaseProfile = useCallback((profileId: number) => {
+    clientRef.current?.release(profileId).catch(() => {});
+  }, []);
 
   const load = useCallback(
     (next: GamutSelection, readBytes: () => Promise<ArrayBuffer>) => {
@@ -54,11 +66,17 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
         .then((bytes) => getClient().loadProfile(bytes))
         .then((result) => {
           if (sequence !== loadSequenceRef.current) {
+            releaseProfile(result.profileId);
             return;
           }
+          const previousProfileId = loadedProfileIdRef.current;
+          loadedProfileIdRef.current = result.profileId;
           setSelection(next);
           setLoaded(result);
           setPendingSelection(null);
+          if (previousProfileId !== null) {
+            releaseProfile(previousProfileId);
+          }
         })
         .catch((reason: unknown) => {
           if (sequence !== loadSequenceRef.current) {
@@ -68,7 +86,7 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
           setPendingSelection(null);
         });
     },
-    [getClient],
+    [getClient, releaseProfile],
   );
 
   const selectPreset = useCallback(
@@ -80,6 +98,10 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
         setPendingSelection(null);
         setError(null);
         setLoaded(null);
+        if (loadedProfileIdRef.current !== null) {
+          releaseProfile(loadedProfileIdRef.current);
+          loadedProfileIdRef.current = null;
+        }
         return;
       }
 
@@ -91,7 +113,7 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
         return response.arrayBuffer();
       });
     },
-    [load],
+    [load, releaseProfile],
   );
 
   const uploadProfile = useCallback(
@@ -116,7 +138,7 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
     });
 
     getClient()
-      .roundTrip(labs)
+      .roundTrip(loaded.profileId, labs)
       .then(({ reproducedLabs, deviceValues }) => {
         if (cancelled) {
           return;

@@ -25,11 +25,15 @@ export type GamutResult = Reproduction & {
   status: GamutStatus;
 };
 
-export type WorkerCommand = { type: "load"; bytes: ArrayBuffer } | { type: "roundTrip"; labs: Float32Array };
+export type WorkerCommand =
+  | { type: "load"; bytes: ArrayBuffer }
+  | { type: "roundTrip"; profileId: number; labs: Float32Array }
+  | { type: "release"; profileId: number };
 
 export type WorkerRequest = WorkerCommand & { id: number };
 
 export type WorkerResponse =
-  | { id: number; type: "loaded"; info: ProfileInfo; shell: GamutShell }
+  | { id: number; type: "loaded"; profileId: number; info: ProfileInfo; shell: GamutShell }
   | { id: number; type: "roundTripped"; reproducedLabs: Float32Array; deviceValues: Float32Array }
+  | { id: number; type: "released" }
   | { id: number; type: "error"; message: string };

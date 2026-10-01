@@ -2,8 +2,10 @@ import type { GamutShell, ProfileInfo, WorkerCommand, WorkerResponse } from "./t
 
 export type GamutClient = {
   /** Transfers `bytes` to the worker; the caller's buffer is detached afterwards. */
-  loadProfile: (bytes: ArrayBuffer) => Promise<{ info: ProfileInfo; shell: GamutShell }>;
-  roundTrip: (labs: Float32Array) => Promise<{ reproducedLabs: Float32Array; deviceValues: Float32Array }>;
+  loadProfile: (bytes: ArrayBuffer) => Promise<{ profileId: number; info: ProfileInfo; shell: GamutShell }>;
+  roundTrip: (profileId: number, labs: Float32Array) => Promise<{ reproducedLabs: Float32Array; deviceValues: Float32Array }>;
+  /** Frees a loaded profile in the worker. Resolves once released. */
+  release: (profileId: number) => Promise<void>;
   dispose: () => void;
 };
 
@@ -41,10 +43,10 @@ export function createGamutClient(): GamutClient {
       if (response.type !== "loaded") {
         throw new Error("Unexpected response from the color engine.");
       }
-      return { info: response.info, shell: response.shell };
+      return { profileId: response.profileId, info: response.info, shell: response.shell };
     },
-    async roundTrip(labs) {
-      const response = await send({ type: "roundTrip", labs }, [labs.buffer]);
+    async roundTrip(profileId, labs) {
+      const response = await send({ type: "roundTrip", profileId, labs }, [labs.buffer]);
       if (response.type === "error") {
         throw new Error(response.message);
       }
@@ -53,8 +55,15 @@ export function createGamutClient(): GamutClient {
       }
       return { reproducedLabs: response.reproducedLabs, deviceValues: response.deviceValues };
     },
+    async release(profileId) {
+      const response = await send({ type: "release", profileId }, []);
+      if (response.type === "error") {
+        throw new Error(response.message);
+      }
+    },
     dispose() {
       worker.terminate();
+      pending.forEach((settle, id) => settle({ id, type: "error", message: "The color engine was shut down." }));
       pending.clear();
     },
   };
