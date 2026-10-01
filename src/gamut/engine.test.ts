@@ -115,17 +115,16 @@ describe("createProfileEngine", () => {
     expect(() => engine.deviceToLab(new Float32Array(4))).toThrow("Profile engine has been disposed.");
   });
 
-  it("survives a 20 MB profile buffer without corrupting the module", async () => {
+  it("opens a 20 MB padded profile without corrupting the module", async () => {
     const lcms = await lcmsReady;
     const original = readPresetBytes("GRACoL2013_CRPC6.icc");
     const padded = new Uint8Array(20 * 1024 * 1024);
     padded.set(original);
 
-    try {
-      createProfileEngine(lcms, padded).dispose();
-    } catch (error) {
-      expect(error).toBeInstanceOf(Error);
-    }
+    const large = createProfileEngine(lcms, padded);
+    expect(large.info.colorSpace).toBe("CMYK");
+    expect(large.roundTrip(new Float32Array([95, 1, -4])).deviceValues).toHaveLength(4);
+    large.dispose();
 
     const fresh = createProfileEngine(lcms, original);
     expect(fresh.roundTrip(new Float32Array([95, 1, -4])).deviceValues).toHaveLength(4);

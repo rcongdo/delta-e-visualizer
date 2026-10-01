@@ -29,6 +29,9 @@ export function createProfileEngine(lcms: LcmsModule, bytes: Uint8Array): Profil
   // The cmsOpenProfileFromMem wrapper copies bytes onto the small WASM stack, which crashes on large
   // profiles. Copy onto the heap instead; LittleCMS copies the data, so freeing straight away is safe.
   const pointer = lcms._malloc(bytes.byteLength);
+  if (!pointer) {
+    throw new Error("Profile is too large to load.");
+  }
   let profile: number;
   try {
     lcms.HEAPU8.set(bytes, pointer);
