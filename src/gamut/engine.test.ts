@@ -77,4 +77,58 @@ describe("createProfileEngine", () => {
 
     expect(() => createProfileEngine(lcms, new Uint8Array(200))).toThrow("Not an ICC profile.");
   });
+
+  it("round-trips a multi-point batch the same as single points", () => {
+    const labs = new Float32Array([95, 1, -4, 50, 20, -10, 70, -30, 40]);
+    const batch = crpc6.roundTrip(labs);
+
+    for (let i = 0; i < 3; i += 1) {
+      const single = crpc6.roundTrip(labs.slice(i * 3, i * 3 + 3));
+      single.reproducedLabs.forEach((value, j) => expect(Math.abs(batch.reproducedLabs[i * 3 + j] - value)).toBeLessThan(1e-4));
+      single.deviceValues.forEach((value, j) => expect(Math.abs(batch.deviceValues[i * 4 + j] - value)).toBeLessThan(1e-4));
+    }
+  });
+
+  it("rejects batches with the wrong length", () => {
+    expect(() => crpc6.roundTrip(new Float32Array(4))).toThrow("Lab input length must be a multiple of 3.");
+    expect(() => crpc6.deviceToLab(new Float32Array(5))).toThrow("Device input length must be a multiple of 4.");
+  });
+
+  it("disposes idempotently and leaves other engines working", async () => {
+    const lcms = await lcmsReady;
+    const engine = createProfileEngine(lcms, readPresetBytes("GRACoL2013_CRPC6.icc"));
+
+    engine.dispose();
+    expect(() => engine.dispose()).not.toThrow();
+
+    const fresh = createProfileEngine(lcms, readPresetBytes("GRACoL2013_CRPC6.icc"));
+    expect(fresh.roundTrip(new Float32Array([95, 1, -4])).deviceValues).toHaveLength(4);
+    fresh.dispose();
+  });
+
+  it("throws when used after dispose", async () => {
+    const lcms = await lcmsReady;
+    const engine = createProfileEngine(lcms, readPresetBytes("GRACoL2013_CRPC6.icc"));
+    engine.dispose();
+
+    expect(() => engine.roundTrip(new Float32Array([95, 1, -4]))).toThrow("Profile engine has been disposed.");
+    expect(() => engine.deviceToLab(new Float32Array(4))).toThrow("Profile engine has been disposed.");
+  });
+
+  it("survives a 20 MB profile buffer without corrupting the module", async () => {
+    const lcms = await lcmsReady;
+    const original = readPresetBytes("GRACoL2013_CRPC6.icc");
+    const padded = new Uint8Array(20 * 1024 * 1024);
+    padded.set(original);
+
+    try {
+      createProfileEngine(lcms, padded).dispose();
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+    }
+
+    const fresh = createProfileEngine(lcms, original);
+    expect(fresh.roundTrip(new Float32Array([95, 1, -4])).deviceValues).toHaveLength(4);
+    fresh.dispose();
+  });
 });

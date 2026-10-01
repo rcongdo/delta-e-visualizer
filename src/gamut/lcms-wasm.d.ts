@@ -1,6 +1,10 @@
 declare module "lcms-wasm" {
   export type LcmsModule = {
     cmsOpenProfileFromMem(data: Uint8Array, size: number): number;
+    _malloc(size: number): number;
+    _free(pointer: number): void;
+    _cmsOpenProfileFromMem(pointer: number, size: number): number;
+    HEAPU8: Uint8Array;
     cmsCloseProfile(profile: number): void;
     cmsCreateLab4Profile(whitePoint: number[] | null): number;
     cmsFormatterForColorspaceOfProfile(profile: number, bytesPerChannel: number, isFloat: boolean): number;
