@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResolvedColor } from "../types";
-import { createGamutClient, type GamutClient } from "./gamutClient";
+import { getGamutClient, type GamutClient } from "./gamutClient";
 import { findPreset, presetUrl } from "./presets";
 import type { GamutShell, ProfileInfo, Reproduction } from "./types";
 
@@ -21,38 +21,22 @@ export type GamutProfileState = {
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+type Loaded = { client: GamutClient; profileId: number; info: ProfileInfo; shell: GamutShell };
+
+/** `colors` must be referentially stable between renders (it comes from state); a new array re-runs the round trip. */
 export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
-  const clientRef = useRef<GamutClient | null>(null);
   const loadSequenceRef = useRef(0);
-  const mountedRef = useRef(false);
-  const loadedProfileIdRef = useRef<number | null>(null);
+  const loadedRef = useRef<Loaded | null>(null);
   const [selection, setSelection] = useState<GamutSelection>({ kind: "none" });
   const [pendingSelection, setPendingSelection] = useState<GamutSelection | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState<{ profileId: number; info: ProfileInfo; shell: GamutShell } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [roundTripError, setRoundTripError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [reproductions, setReproductions] = useState<Map<string, Reproduction> | null>(null);
 
-  const getClient = useCallback(() => {
-    if (!mountedRef.current) {
-      throw new Error("Gamut profile hook is unmounted.");
-    }
-    clientRef.current ??= createGamutClient();
-    return clientRef.current;
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      clientRef.current?.dispose();
-      clientRef.current = null;
-      loadedProfileIdRef.current = null;
-    };
-  }, []);
-
   // Best effort: a failed release only means the worker keeps an unused engine.
-  const releaseProfile = useCallback((profileId: number) => {
-    clientRef.current?.release(profileId).catch(() => {});
+  const releaseProfile = useCallback((profile: { client: GamutClient; profileId: number }) => {
+    profile.client.release(profile.profileId).catch(() => {});
   }, []);
 
   const load = useCallback(
@@ -60,33 +44,35 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
       const sequence = loadSequenceRef.current + 1;
       loadSequenceRef.current = sequence;
       setPendingSelection(next);
-      setError(null);
+      setLoadError(null);
 
+      const client = getGamutClient();
       readBytes()
-        .then((bytes) => getClient().loadProfile(bytes))
+        .then((bytes) => client.loadProfile(bytes))
         .then((result) => {
+          const profile: Loaded = { client, ...result };
           if (sequence !== loadSequenceRef.current) {
-            releaseProfile(result.profileId);
+            releaseProfile(profile);
             return;
           }
-          const previousProfileId = loadedProfileIdRef.current;
-          loadedProfileIdRef.current = result.profileId;
+          const previous = loadedRef.current;
+          loadedRef.current = profile;
           setSelection(next);
-          setLoaded(result);
+          setLoaded(profile);
           setPendingSelection(null);
-          if (previousProfileId !== null) {
-            releaseProfile(previousProfileId);
+          if (previous) {
+            releaseProfile(previous);
           }
         })
         .catch((reason: unknown) => {
           if (sequence !== loadSequenceRef.current) {
             return;
           }
-          setError(errorMessage(reason));
+          setLoadError(errorMessage(reason));
           setPendingSelection(null);
         });
     },
-    [getClient, releaseProfile],
+    [releaseProfile],
   );
 
   const selectPreset = useCallback(
@@ -96,17 +82,19 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
         loadSequenceRef.current += 1;
         setSelection({ kind: "none" });
         setPendingSelection(null);
-        setError(null);
+        setLoadError(null);
         setLoaded(null);
-        if (loadedProfileIdRef.current !== null) {
-          releaseProfile(loadedProfileIdRef.current);
-          loadedProfileIdRef.current = null;
+        if (loadedRef.current) {
+          releaseProfile(loadedRef.current);
+          loadedRef.current = null;
         }
         return;
       }
 
       load({ kind: "preset", presetId: preset.id }, async () => {
-        const response = await fetch(presetUrl(preset));
+        const response = await fetch(presetUrl(preset)).catch((reason: unknown) => {
+          throw new Error(`Could not download ${preset.label}: ${errorMessage(reason)}`);
+        });
         if (!response.ok) {
           throw new Error(`Could not download ${preset.label} (HTTP ${response.status}).`);
         }
@@ -125,6 +113,7 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
 
   useEffect(() => {
     setReproductions(null);
+    setRoundTripError(null);
     if (!loaded || colors.length === 0) {
       return;
     }
@@ -137,7 +126,7 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
       labs[index * 3 + 2] = color.lab.b;
     });
 
-    getClient()
+    loaded.client
       .roundTrip(loaded.profileId, labs)
       .then(({ reproducedLabs, deviceValues }) => {
         if (cancelled) {
@@ -162,19 +151,19 @@ export function useGamutProfile(colors: ResolvedColor[]): GamutProfileState {
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
-          setError(errorMessage(reason));
+          setRoundTripError(errorMessage(reason));
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [colors, getClient, loaded]);
+  }, [colors, loaded]);
 
   return {
     selection,
     pendingSelection,
-    error,
+    error: loadError ?? roundTripError,
     info: loaded?.info ?? null,
     shell: loaded?.shell ?? null,
     reproductions,

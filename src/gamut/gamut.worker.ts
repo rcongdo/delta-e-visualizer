@@ -44,15 +44,22 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       return;
     }
 
-    const engine = engines.get(request.profileId);
-    if (!engine) {
-      throw new Error("That profile is no longer loaded.");
+    if (request.type === "roundTrip") {
+      const engine = engines.get(request.profileId);
+      if (!engine) {
+        throw new Error("That profile is no longer loaded.");
+      }
+      const { reproducedLabs, deviceValues } = engine.roundTrip(request.labs);
+      post({ id: request.id, type: "roundTripped", reproducedLabs, deviceValues }, [
+        reproducedLabs.buffer,
+        deviceValues.buffer,
+      ]);
+      return;
     }
-    const { reproducedLabs, deviceValues } = engine.roundTrip(request.labs);
-    post({ id: request.id, type: "roundTripped", reproducedLabs, deviceValues }, [
-      reproducedLabs.buffer,
-      deviceValues.buffer,
-    ]);
+
+    const unreachable: never = request;
+    void unreachable;
+    throw new Error("Unknown request.");
   } catch (error) {
     post({ id: request.id, type: "error", message: error instanceof Error ? error.message : String(error) });
   }
