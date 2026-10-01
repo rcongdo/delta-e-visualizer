@@ -11,6 +11,11 @@ const AB_MAX = 128;
  * Samples a Lab grid, round-trips it through the profile, and returns the
  * surface where the round-trip error (CIE76) equals `cutoff`. Uses CIE76 so
  * the shell does not change shape when the user switches Delta E formula.
+ *
+ * The shell follows the classification field exactly. Where round-trip noise
+ * sits near the cutoff (mostly in the shadows), it can contain tiny
+ * single-sample islands and thin tunnels. This is intentional, so the drawn
+ * boundary agrees with point status.
  */
 export function buildGamutShell(
   roundTrip: (labs: Float32Array) => { reproducedLabs: Float32Array },

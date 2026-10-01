@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { IN_GAMUT_CUTOFF } from "./cutoff";
 import { createProfileEngine } from "./engine";
 import { buildGamutShell } from "./shell";
-import { countOpenEdges, lcmsReady, readPresetBytes } from "./testSupport";
+import { countInconsistentEdges, countOpenEdges, lcmsReady, readPresetBytes, signedVolume } from "./testSupport";
 
 describe("buildGamutShell", () => {
   it("builds a closed CRPC6 shell spanning its black and paper white", async () => {
@@ -13,6 +13,8 @@ describe("buildGamutShell", () => {
 
     expect(shell.indices.length).toBeGreaterThan(3000);
     expect(countOpenEdges(shell.indices)).toBe(0);
+    expect(countInconsistentEdges(shell.indices)).toBe(0);
+    expect(signedVolume(shell.positions, shell.indices)).toBeGreaterThan(0);
 
     let minL = Infinity;
     let maxL = -Infinity;
