@@ -17,6 +17,8 @@ export type ProfileEngine = {
   roundTrip: (labs: Float32Array) => RoundTripOutput;
   /** Device → Lab, taking device values in the same display units that roundTrip returns. Used for calibration and tests. */
   deviceToLab: (device: Float32Array) => Float32Array;
+  /** 100% of a device channel in display units: 100 for ink channels, 255 for RGB and Gray. */
+  deviceFullScale: number;
   dispose: () => void;
 };
 
@@ -133,6 +135,8 @@ export function createProfileEngine(lcms: LcmsModule, bytes: Uint8Array): Profil
           space.displayScale === 1 ? device : device.map((value) => value / space.displayScale);
         return lcms.cmsDoTransform(toLab, native, device.length / channelCount);
       },
+      // LittleCMS float ink channels run 0–100 (displayScale 1); everything else runs 0–1.
+      deviceFullScale: space.displayScale === 1 ? 100 : space.displayScale,
       dispose: release,
     };
   } catch (error) {

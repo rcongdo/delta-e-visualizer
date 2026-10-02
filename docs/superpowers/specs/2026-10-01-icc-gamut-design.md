@@ -92,15 +92,17 @@ Record this summary in a comment beside the constant.
 
 ## Gamut Shell
 
-Built in the worker on profile load:
+Built in the worker on profile load, the same way the companion ICC Lab Gamut Visualizer does it:
 
-1. Sample a Lab grid: L* 0–100, a* and b* −128–128, at about 2-unit spacing.
-2. Round-trip every grid point; the scalar field value is the CIE76 distance between input and reproduced Lab.
-3. Extract the isosurface at `IN_GAMUT_CUTOFF` with marching tetrahedra (no lookup tables or ambiguous cases; always closed). Where round-trip noise sits near the cutoff (mostly in the shadows) it can contain tiny single-sample islands and thin tunnels.
-4. Taubin-smooth the mesh (10 λ|μ passes) to remove grid stair-stepping. Vertices move about 0.4 ΔE76 on average (max about 2) and volume is preserved, so the shell agrees with point status to within about a grid step.
-5. Return positions as Lab vertices plus triangle indices.
+1. For every pair of device channels, and every combination of 0% / 100% for the remaining channels, sample a 23 × 23 grid on that 2D face of the device cube (11 × 11 for profiles with more than four channels). CMYK gives 24 faces; 7CLR gives 672.
+2. Convert all samples device → Lab in one absolute-colorimetric call.
+3. Triangulate each face's grid and return Lab positions plus triangle indices.
 
-The shell is the same "reproducible" region the round-trip measures, so the drawn boundary and the green points agree. It does not depend on the profile's `gbd` tags, so uploads without them work too. The field uses CIE76 so the shell does not change shape when the user switches Delta E formula.
+The profile's A2B table is smooth, so the shell is smooth, and it builds in well under a second. Faces are separate grids rather than a closed mesh, and some fold inside the gamut, so the scene renders them double-sided and translucent.
+
+The shell shows what the device can reach. It does not apply the profile's B2A ink limits, so in the deepest shadows it can be slightly larger than what the round trip achieves; a color just inside the shell there can still be amber. Classification is unaffected, since it always uses the round trip.
+
+(An earlier version extracted an isosurface of round-trip error from a Lab grid. It matched point status exactly but looked bumpy wherever the profile's tables are noisy, so it was replaced.)
 
 ## UI
 

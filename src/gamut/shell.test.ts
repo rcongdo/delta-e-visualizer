@@ -1,30 +1,56 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { IN_GAMUT_CUTOFF } from "./cutoff";
 import { createProfileEngine } from "./engine";
 import { buildGamutShell } from "./shell";
-import { countInconsistentEdges, countOpenEdges, lcmsReady, readPresetBytes, signedVolume } from "./testSupport";
+import { lcmsReady, readPresetBytes } from "./testSupport";
+
+const lightnessRange = (positions: Float32Array) => {
+  let min = Infinity;
+  let max = -Infinity;
+  for (let offset = 0; offset < positions.length; offset += 3) {
+    min = Math.min(min, positions[offset]);
+    max = Math.max(max, positions[offset]);
+  }
+  return { min, max };
+};
 
 describe("buildGamutShell", () => {
-  it("builds a closed CRPC6 shell spanning its black and paper white", async () => {
+  it("maps every face of the CMYK cube through the profile", async () => {
     const engine = createProfileEngine(await lcmsReady, readPresetBytes("GRACoL2013_CRPC6.icc"));
-    const shell = buildGamutShell(engine.roundTrip, IN_GAMUT_CUTOFF);
+    const shell = buildGamutShell(engine, 5);
     engine.dispose();
 
-    expect(shell.indices.length).toBeGreaterThan(3000);
-    expect(countOpenEdges(shell.indices)).toBe(0);
-    expect(countInconsistentEdges(shell.indices)).toBe(0);
-    expect(signedVolume(shell.positions, shell.indices)).toBeGreaterThan(0);
+    // 6 channel pairs × 4 fixed combinations = 24 faces of 5 × 5 samples, 4 × 4 quads each.
+    expect(shell.positions).toHaveLength(24 * 25 * 3);
+    expect(shell.indices).toHaveLength(24 * 16 * 6);
+    shell.positions.forEach((value) => expect(Number.isFinite(value)).toBe(true));
+    shell.indices.forEach((index) => expect(index).toBeLessThan(24 * 25));
+  });
 
-    let minL = Infinity;
-    let maxL = -Infinity;
-    for (let offset = 0; offset < shell.positions.length; offset += 3) {
-      minL = Math.min(minL, shell.positions[offset]);
-      maxL = Math.max(maxL, shell.positions[offset]);
-    }
-    expect(minL).toBeGreaterThan(2);
-    expect(minL).toBeLessThan(20);
-    expect(maxL).toBeGreaterThan(90);
-    expect(maxL).toBeLessThan(100);
-  }, 60_000);
+  it("spans the profile's black and paper white", async () => {
+    const engine = createProfileEngine(await lcmsReady, readPresetBytes("GRACoL2013_CRPC6.icc"));
+    const { min, max } = lightnessRange(buildGamutShell(engine).positions);
+    engine.dispose();
+
+    expect(min).toBeGreaterThan(2);
+    expect(min).toBeLessThan(20);
+    expect(max).toBeGreaterThan(94);
+    expect(max).toBeLessThan(96);
+  });
+
+  it("caps face resolution for profiles with more than four channels", () => {
+    const calls: number[] = [];
+    const fakeEngine = {
+      info: { name: "fake", colorSpace: "5CLR", channelNames: ["Ch1", "Ch2", "Ch3", "Ch4", "Ch5"] },
+      deviceFullScale: 100,
+      deviceToLab: (device: Float32Array) => {
+        calls.push(device.length / 5);
+        return new Float32Array((device.length / 5) * 3);
+      },
+    };
+    buildGamutShell(fakeEngine, 23);
+
+    // 10 channel pairs × 8 fixed combinations = 80 faces of 11 × 11 samples, in one transform call.
+    expect(calls).toEqual([80 * 121]);
+  });
 });

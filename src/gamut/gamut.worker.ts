@@ -1,6 +1,5 @@
 import { instantiate } from "lcms-wasm";
 import wasmUrl from "lcms-wasm/dist/lcms.wasm?url";
-import { IN_GAMUT_CUTOFF } from "./cutoff";
 import { createProfileEngine, type ProfileEngine } from "./engine";
 import { buildGamutShell } from "./shell";
 import type { GamutShell, WorkerRequest, WorkerResponse } from "./types";
@@ -27,7 +26,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       const next = createProfileEngine(lcms, new Uint8Array(request.bytes));
       let shell: GamutShell;
       try {
-        shell = buildGamutShell(next.roundTrip, IN_GAMUT_CUTOFF);
+        shell = buildGamutShell(next);
       } catch (error) {
         next.dispose();
         throw error;
