@@ -1,5 +1,8 @@
 import { Check, Upload, X } from "lucide-react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
+import { GAMUT_STATUS_COLORS, GAMUT_STATUS_LABELS } from "../gamut/classify";
+import { formatDeviceValues } from "../gamut/format";
+import type { GamutResult } from "../gamut/types";
 import type { DeltaEFormula, ImportResult, ResolvedColor } from "../types";
 
 type ControlsPanelProps = {
@@ -9,6 +12,9 @@ type ControlsPanelProps = {
   tolerance: number;
   manualLabInputs: { l: string; a: string; b: string };
   comparisonResult: { value: number; inTolerance: boolean } | null;
+  gamutPanel: ReactNode;
+  selectedGamut: GamutResult | null;
+  deviceChannelNames: string[] | null;
   onFileUpload: (file: File | null) => void;
   onFormulaChange: (formula: DeltaEFormula) => void;
   onManualLabChange: (inputs: { l: string; a: string; b: string }) => void;
@@ -31,6 +37,9 @@ export default function ControlsPanel({
   tolerance,
   manualLabInputs,
   comparisonResult,
+  gamutPanel,
+  selectedGamut,
+  deviceChannelNames,
   onFileUpload,
   onFormulaChange,
   onManualLabChange,
@@ -110,6 +119,8 @@ export default function ControlsPanel({
         </div>
       </section>
 
+      {gamutPanel}
+
       <section className="panel-section" aria-labelledby="selected-heading">
         <h2 id="selected-heading">Selected Color</h2>
         {selectedColor ? (
@@ -142,6 +153,16 @@ export default function ControlsPanel({
                 </div>
               )}
             </dl>
+            {selectedGamut && (
+              <div className="gamut-detail">
+                <i className="status-dot" style={{ background: GAMUT_STATUS_COLORS[selectedGamut.status] }} />
+                <strong>Achievable ΔE {selectedGamut.achievableDeltaE.toFixed(2)}</strong>
+                <span>{GAMUT_STATUS_LABELS[selectedGamut.status]}</span>
+                {deviceChannelNames && (
+                  <small>{formatDeviceValues(deviceChannelNames, selectedGamut.deviceValues)}</small>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <p className="muted">Upload a CxF file and select a resolved color.</p>

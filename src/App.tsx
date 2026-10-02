@@ -3,7 +3,10 @@ import { deltaE } from "./color/deltaE";
 import { parseCxf } from "./cxf/parseCxf";
 import ColorList from "./components/ColorList";
 import ControlsPanel from "./components/ControlsPanel";
+import GamutPanel, { type PointColorMode } from "./components/GamutPanel";
 import LabScene from "./components/LabScene";
+import { GAMUT_STATUS_COLORS, computeGamutResults, countGamutStatuses } from "./gamut/classify";
+import { useGamutProfile } from "./gamut/useGamutProfile";
 import type { DeltaEFormula, ImportResult, LabColor } from "./types";
 
 const emptyImportResult: ImportResult = { colors: [], unresolved: [], errors: [] };
@@ -16,7 +19,10 @@ export default function App() {
   const [formula, setFormula] = useState<DeltaEFormula>("ciede2000");
   const [tolerance, setTolerance] = useState(2);
   const [manualLabInputs, setManualLabInputs] = useState({ l: "", a: "", b: "" });
+  const [showShell, setShowShell] = useState(true);
+  const [pointMode, setPointMode] = useState<PointColorMode>("actual");
   const uploadSequenceRef = useRef(0);
+  const gamut = useGamutProfile(importResult.colors);
 
   const selectedColor = useMemo(
     () => importResult.colors.find((color) => color.id === selectedId) ?? null,
@@ -47,6 +53,20 @@ export default function App() {
       inTolerance: value <= tolerance,
     };
   }, [formula, manualLab, selectedColor, tolerance]);
+  const gamutResults = useMemo(
+    () =>
+      gamut.reproductions ? computeGamutResults(importResult.colors, gamut.reproductions, formula, tolerance) : null,
+    [formula, gamut.reproductions, importResult.colors, tolerance],
+  );
+  const gamutCounts = useMemo(() => (gamutResults ? countGamutStatuses(gamutResults) : null), [gamutResults]);
+  const pointColors = useMemo(
+    () =>
+      pointMode === "gamut" && gamutResults
+        ? new Map([...gamutResults].map(([id, result]) => [id, GAMUT_STATUS_COLORS[result.status]]))
+        : null,
+    [gamutResults, pointMode],
+  );
+  const selectedGamut = (selectedId && gamutResults?.get(selectedId)) || null;
 
   const applyImportedText = (text: string) => {
     const result = parseCxf(text);
@@ -118,6 +138,10 @@ export default function App() {
           selectedId={selectedId}
           formula={formula}
           tolerance={tolerance}
+          pointColors={pointColors}
+          shell={gamut.shell}
+          showShell={showShell}
+          reproducedLab={selectedGamut?.reproducedLab ?? null}
           onSelect={setSelectedId}
         />
       </section>
@@ -129,12 +153,34 @@ export default function App() {
           tolerance={tolerance}
           manualLabInputs={manualLabInputs}
           comparisonResult={comparisonResult}
+          gamutPanel={
+            <GamutPanel
+              selection={gamut.selection}
+              pendingSelection={gamut.pendingSelection}
+              error={gamut.error}
+              info={gamut.info}
+              counts={gamutCounts}
+              showShell={showShell}
+              pointMode={pointMode}
+              onSelectPreset={gamut.selectPreset}
+              onUploadProfile={gamut.uploadProfile}
+              onShowShellChange={setShowShell}
+              onPointModeChange={setPointMode}
+            />
+          }
+          selectedGamut={selectedGamut}
+          deviceChannelNames={gamut.info?.channelNames ?? null}
           onFileUpload={handleFileUpload}
           onFormulaChange={setFormula}
           onManualLabChange={setManualLabInputs}
           onToleranceChange={setTolerance}
         />
-        <ColorList colors={importResult.colors} selectedId={selectedId} onSelect={setSelectedId} />
+        <ColorList
+          colors={importResult.colors}
+          selectedId={selectedId}
+          gamutResults={gamutResults}
+          onSelect={setSelectedId}
+        />
       </aside>
     </main>
   );

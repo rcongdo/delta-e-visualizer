@@ -417,7 +417,7 @@ button {
 
 .color-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
   gap: 5px;
   width: 100%;
@@ -472,6 +472,189 @@ button {
   padding: 10px 0;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.profile-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 0;
+  color: #4f584d;
+  font-size: 11px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.gamut-legend {
+  display: grid;
+  gap: 3px;
+  margin-top: 6px;
+  cursor: help;
+  font-size: 11px;
+}
+
+.gamut-legend span {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  color: #4f584d;
+}
+
+.gamut-legend strong {
+  color: #1e2b1f;
+}
+
+.gamut-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+}
+
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #d5cfc1;
+  border-radius: 7px;
+}
+
+.segmented button,
+.status-chip,
+.icon-button {
+  background: #ffffff;
+  color: #4f584d;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.segmented button {
+  padding: 4px 8px;
+}
+
+.segmented button + button {
+  border-left: 1px solid #d5cfc1;
+}
+
+.segmented button.is-active {
+  background: #5f8a6a;
+  color: #ffffff;
+}
+
+.gamut-detail {
+  display: grid;
+  grid-template-columns: 12px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 5px;
+  margin-top: 6px;
+  border: 1px solid #e2dccf;
+  border-radius: 7px;
+  background: #f7f4ed;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.gamut-detail small {
+  grid-column: 2 / -1;
+  color: #5d6258;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: end;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.icon-button {
+  display: grid;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #d5cfc1;
+  border-radius: 7px;
+}
+
+.status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.status-chip {
+  border: 1px solid #d5cfc1;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.status-chip.is-active {
+  border-color: #5f8a6a;
+  background: #edf5ec;
+  color: #1e2b1f;
+  font-weight: 700;
+}
+
+.status-chip.status-in.is-active {
+  border-color: #3fae5a;
+}
+
+.status-chip.status-within.is-active {
+  border-color: #e0a526;
+  background: #fdf5e2;
+}
+
+.status-chip.status-out.is-active {
+  border-color: #d9483b;
+  background: #fff0ed;
+}
+
+.delta-badge {
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.delta-badge.status-in {
+  background: #e3f4e6;
+  color: #24683a;
+}
+
+.delta-badge.status-within {
+  background: #fbefd2;
+  color: #85600d;
+}
+
+.delta-badge.status-out {
+  background: #fde3df;
+  color: #9a2d22;
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -504,7 +687,7 @@ button {
   }
 
   .color-row {
-    grid-template-columns: 20px minmax(0, 1fr);
+    grid-template-columns: 20px minmax(0, 1fr) auto;
   }
 
   .source-pill {
