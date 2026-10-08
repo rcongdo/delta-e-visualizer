@@ -477,7 +477,8 @@ export default function LabScene({
       {colors.length === 0 && (
         <div className="empty-scene">
           <span className="scene-kicker">L*a*b*</span>
-          <strong>Upload a CxF file</strong>
+          <strong>Import a CxF file</strong>
+          <span className="scene-hint">Use the Import CxF button in the bottom-left corner.</span>
         </div>
       )}
     </div>

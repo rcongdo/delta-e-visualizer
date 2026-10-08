@@ -70,10 +70,9 @@ export default function GamutPanel({
   };
 
   return (
-    <section className="panel-section" aria-labelledby="gamut-heading">
-      <h2 id="gamut-heading">Gamut Profile</h2>
-      <label className="field">
-        <span>Profile</span>
+    <div className="gamut-bar" role="group" aria-labelledby="gamut-heading">
+      <label className="gamut-select">
+        <span id="gamut-heading">Gamut</span>
         <select value={selectionValue(shown)} onChange={(event) => handleSelect(event.currentTarget.value)}>
           <option value={NONE_VALUE}>None</option>
           {GAMUT_PRESETS.map((preset) => (
@@ -95,14 +94,15 @@ export default function GamutPanel({
         onChange={handleFileChange}
       />
 
-      {loading && <p className="muted profile-meta">Loading profile…</p>}
+      {loading && <span className="profile-meta">Loading profile…</span>}
       {!loading && info && (
-        <p className="profile-meta">
+        <span className="profile-meta" title={`${info.name} · ${info.colorSpace}`}>
           {selection.kind === "upload" && <Upload aria-hidden="true" size={12} />}
-          <strong>{info.name}</strong> · {info.colorSpace}
-        </p>
+          <strong>{info.name}</strong>
+          <span>{info.colorSpace}</span>
+        </span>
       )}
-      {error && <p className="issue issue-error">{error}</p>}
+      {error && <span className="gamut-error">{error}</span>}
 
       {info && (
         <>
@@ -115,31 +115,29 @@ export default function GamutPanel({
               </span>
             ))}
           </div>
-          <div className="gamut-toggles">
-            <label className="check-field">
-              <input
-                type="checkbox"
-                checked={showShell}
-                onChange={(event) => onShowShellChange(event.currentTarget.checked)}
-              />
-              <span>Show gamut shell</span>
-            </label>
-            <div className="segmented" role="group" aria-label="Point color">
-              {(["actual", "gamut"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={pointMode === mode ? "is-active" : ""}
-                  aria-pressed={pointMode === mode}
-                  onClick={() => onPointModeChange(mode)}
-                >
-                  {mode === "actual" ? "Actual color" : "Gamut warning"}
-                </button>
-              ))}
-            </div>
+          <label className="check-field">
+            <input
+              type="checkbox"
+              checked={showShell}
+              onChange={(event) => onShowShellChange(event.currentTarget.checked)}
+            />
+            <span>Shell</span>
+          </label>
+          <div className="segmented" role="group" aria-label="Point color">
+            {(["actual", "gamut"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={pointMode === mode ? "is-active" : ""}
+                aria-pressed={pointMode === mode}
+                onClick={() => onPointModeChange(mode)}
+              >
+                {mode === "actual" ? "Actual color" : "Gamut warning"}
+              </button>
+            ))}
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }
