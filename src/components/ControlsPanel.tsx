@@ -1,6 +1,7 @@
 import { Check, Upload, X } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import { GAMUT_STATUS_COLORS, GAMUT_STATUS_LABELS } from "../gamut/classify";
+import type { ColorMatch } from "../color/closestMatches";
 import { formatDeviceValues } from "../gamut/format";
 import type { GamutResult } from "../gamut/types";
 import type { DeltaEFormula, ImportResult, ResolvedColor } from "../types";
@@ -12,6 +13,7 @@ type ControlsPanelProps = {
   tolerance: number;
   manualLabInputs: { l: string; a: string; b: string };
   comparisonResult: { value: number; inTolerance: boolean } | null;
+  closestMatches: ColorMatch[] | null;
   gamutPanel: ReactNode;
   selectedGamut: GamutResult | null;
   deviceChannelNames: string[] | null;
@@ -19,6 +21,7 @@ type ControlsPanelProps = {
   onFormulaChange: (formula: DeltaEFormula) => void;
   onManualLabChange: (inputs: { l: string; a: string; b: string }) => void;
   onToleranceChange: (tolerance: number) => void;
+  onSelectColor: (id: string) => void;
 };
 
 const formulaOptions: Array<{ value: DeltaEFormula; label: string }> = [
@@ -37,6 +40,7 @@ export default function ControlsPanel({
   tolerance,
   manualLabInputs,
   comparisonResult,
+  closestMatches,
   gamutPanel,
   selectedGamut,
   deviceChannelNames,
@@ -44,6 +48,7 @@ export default function ControlsPanel({
   onFormulaChange,
   onManualLabChange,
   onToleranceChange,
+  onSelectColor,
 }: ControlsPanelProps) {
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     onFileUpload(event.currentTarget.files?.[0] ?? null);
@@ -206,6 +211,37 @@ export default function ControlsPanel({
             <span className="muted">Enter Lab values to compare.</span>
           )}
         </div>
+        {closestMatches && closestMatches.length > 0 && (
+          <div className="closest-matches">
+            <h3 id="closest-matches-heading">Closest Matches</h3>
+            <ol aria-labelledby="closest-matches-heading">
+              {closestMatches.map((match, index) => {
+                const inTolerance = match.deltaE <= tolerance;
+                const isSelected = match.color.id === selectedColor?.id;
+                return (
+                  <li key={match.color.id}>
+                    <button
+                      type="button"
+                      className={`match-row${isSelected ? " is-selected" : ""}`}
+                      aria-pressed={isSelected}
+                      title={`L* ${formatLab(match.color.lab.l)}  a* ${formatLab(match.color.lab.a)}  b* ${formatLab(
+                        match.color.lab.b,
+                      )}`}
+                      onClick={() => onSelectColor(match.color.id)}
+                    >
+                      <span className="match-rank">{index + 1}</span>
+                      <span className="color-swatch" style={{ background: match.color.displayRgb }} />
+                      <strong>{match.color.name}</strong>
+                      <span className={`match-delta${inTolerance ? " is-pass" : " is-fail"}`}>
+                        ΔE {match.deltaE.toFixed(2)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
       </section>
     </>
   );
