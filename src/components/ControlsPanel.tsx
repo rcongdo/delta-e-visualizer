@@ -1,23 +1,19 @@
-import { Check, Upload, X } from "lucide-react";
-import type { ChangeEvent, ReactNode } from "react";
+import { Check, X } from "lucide-react";
 import { GAMUT_STATUS_COLORS, GAMUT_STATUS_LABELS } from "../gamut/classify";
 import type { ColorMatch } from "../color/closestMatches";
 import { formatDeviceValues } from "../gamut/format";
 import type { GamutResult } from "../gamut/types";
-import type { DeltaEFormula, ImportResult, ResolvedColor } from "../types";
+import type { DeltaEFormula, ResolvedColor } from "../types";
 
 type ControlsPanelProps = {
-  importResult: ImportResult;
   selectedColor: ResolvedColor | null;
   formula: DeltaEFormula;
   tolerance: number;
   manualLabInputs: { l: string; a: string; b: string };
   comparisonResult: { value: number; inTolerance: boolean } | null;
   closestMatches: ColorMatch[] | null;
-  gamutPanel: ReactNode;
   selectedGamut: GamutResult | null;
   deviceChannelNames: string[] | null;
-  onFileUpload: (file: File | null) => void;
   onFormulaChange: (formula: DeltaEFormula) => void;
   onManualLabChange: (inputs: { l: string; a: string; b: string }) => void;
   onToleranceChange: (tolerance: number) => void;
@@ -34,26 +30,19 @@ const formulaOptions: Array<{ value: DeltaEFormula; label: string }> = [
 const formatLab = (value: number) => value.toFixed(2);
 
 export default function ControlsPanel({
-  importResult,
   selectedColor,
   formula,
   tolerance,
   manualLabInputs,
   comparisonResult,
   closestMatches,
-  gamutPanel,
   selectedGamut,
   deviceChannelNames,
-  onFileUpload,
   onFormulaChange,
   onManualLabChange,
   onToleranceChange,
   onSelectColor,
 }: ControlsPanelProps) {
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onFileUpload(event.currentTarget.files?.[0] ?? null);
-  };
-
   return (
     <>
       <header className="panel-header">
@@ -61,40 +50,47 @@ export default function ControlsPanel({
         <h1>Lab Visualizer</h1>
       </header>
 
-      <section className="panel-section" aria-labelledby="import-heading">
-        <h2 id="import-heading">CxF Import</h2>
-        <label className="file-input">
-          <Upload aria-hidden="true" size={16} />
-          <span>Choose .cxf file</span>
-          <input type="file" accept=".cxf,.xml,text/xml,application/xml" onChange={handleFileChange} />
-        </label>
-        <div className="summary-grid" aria-label="Import summary">
-          <span>
-            <strong>{importResult.colors.length}</strong>
-            Resolved
-          </span>
-          <span>
-            <strong>{importResult.unresolved.length}</strong>
-            Unresolved
-          </span>
-          <span>
-            <strong>{importResult.errors.length}</strong>
-            Errors
-          </span>
-        </div>
-        {(importResult.unresolved.length > 0 || importResult.errors.length > 0) && (
-          <div className="import-issues">
-            {importResult.errors.map((error) => (
-              <p key={error} className="issue issue-error">
-                {error}
-              </p>
-            ))}
-            {importResult.unresolved.map((color) => (
-              <p key={`${color.path ?? color.name}-${color.reason}`} className="issue">
-                <strong>{color.name}</strong>: {color.reason}
-              </p>
-            ))}
+      <section className="panel-section" aria-labelledby="selected-heading">
+        <h2 id="selected-heading">Selected Color</h2>
+        {selectedColor ? (
+          <div className="selected-details">
+            <div className="selected-title">
+              <span className="color-swatch" style={{ background: selectedColor.displayRgb }} />
+              <strong>{selectedColor.name}</strong>
+            </div>
+            <dl>
+              <div>
+                <dt>L*</dt>
+                <dd>{formatLab(selectedColor.lab.l)}</dd>
+              </div>
+              <div>
+                <dt>a*</dt>
+                <dd>{formatLab(selectedColor.lab.a)}</dd>
+              </div>
+              <div>
+                <dt>b*</dt>
+                <dd>{formatLab(selectedColor.lab.b)}</dd>
+              </div>
+              {selectedColor.path && (
+                <div className="detail-wide">
+                  <dt>Path</dt>
+                  <dd>{selectedColor.path}</dd>
+                </div>
+              )}
+            </dl>
+            {selectedGamut && (
+              <div className="gamut-detail">
+                <i className="status-dot" style={{ background: GAMUT_STATUS_COLORS[selectedGamut.status] }} />
+                <strong>Achievable ΔE {selectedGamut.achievableDeltaE.toFixed(2)}</strong>
+                <span>{GAMUT_STATUS_LABELS[selectedGamut.status]}</span>
+                {deviceChannelNames && (
+                  <small>{formatDeviceValues(deviceChannelNames, selectedGamut.deviceValues)}</small>
+                )}
+              </div>
+            )}
           </div>
+        ) : (
+          <p className="muted">Import a CxF file and select a resolved color.</p>
         )}
       </section>
 
@@ -122,56 +118,6 @@ export default function ControlsPanel({
             />
           </label>
         </div>
-      </section>
-
-      {gamutPanel}
-
-      <section className="panel-section" aria-labelledby="selected-heading">
-        <h2 id="selected-heading">Selected Color</h2>
-        {selectedColor ? (
-          <div className="selected-details">
-            <div className="selected-title">
-              <span className="color-swatch" style={{ background: selectedColor.displayRgb }} />
-              <strong>{selectedColor.name}</strong>
-            </div>
-            <dl>
-              <div>
-                <dt>L*</dt>
-                <dd>{formatLab(selectedColor.lab.l)}</dd>
-              </div>
-              <div>
-                <dt>a*</dt>
-                <dd>{formatLab(selectedColor.lab.a)}</dd>
-              </div>
-              <div>
-                <dt>b*</dt>
-                <dd>{formatLab(selectedColor.lab.b)}</dd>
-              </div>
-              <div>
-                <dt>Source</dt>
-                <dd>{selectedColor.source === "lab" ? "Direct Lab" : "Spectral"}</dd>
-              </div>
-              {selectedColor.path && (
-                <div>
-                  <dt>Path</dt>
-                  <dd>{selectedColor.path}</dd>
-                </div>
-              )}
-            </dl>
-            {selectedGamut && (
-              <div className="gamut-detail">
-                <i className="status-dot" style={{ background: GAMUT_STATUS_COLORS[selectedGamut.status] }} />
-                <strong>Achievable ΔE {selectedGamut.achievableDeltaE.toFixed(2)}</strong>
-                <span>{GAMUT_STATUS_LABELS[selectedGamut.status]}</span>
-                {deviceChannelNames && (
-                  <small>{formatDeviceValues(deviceChannelNames, selectedGamut.deviceValues)}</small>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="muted">Upload a CxF file and select a resolved color.</p>
-        )}
       </section>
 
       <section className="panel-section" aria-labelledby="manual-lab-heading">

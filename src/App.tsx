@@ -3,6 +3,7 @@ import { findClosestMatches } from "./color/closestMatches";
 import { deltaE } from "./color/deltaE";
 import { parseCxf } from "./cxf/parseCxf";
 import ColorList from "./components/ColorList";
+import CxfImportButton from "./components/CxfImportButton";
 import ControlsPanel from "./components/ControlsPanel";
 import GamutPanel, { type PointColorMode } from "./components/GamutPanel";
 import LabScene from "./components/LabScene";
@@ -16,6 +17,7 @@ const devFixtureHashPrefix = "#cxf=";
 
 export default function App() {
   const [importResult, setImportResult] = useState<ImportResult>({ colors: [], unresolved: [], errors: [] });
+  const [importFileName, setImportFileName] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formula, setFormula] = useState<DeltaEFormula>("ciede2000");
   const [tolerance, setTolerance] = useState(2);
@@ -71,6 +73,8 @@ export default function App() {
         : null,
     [gamutResults, pointMode],
   );
+  const importError =
+    importResult.colors.length === 0 && importResult.errors.length > 0 ? importResult.errors.join(" ") : null;
   const selectedGamut = (selectedId && gamutResults?.get(selectedId)) || null;
 
   const applyImportedText = (text: string) => {
@@ -111,6 +115,7 @@ export default function App() {
 
     if (!file) {
       setImportResult(emptyImportResult);
+      setImportFileName(null);
       setSelectedId(null);
       return;
     }
@@ -121,6 +126,7 @@ export default function App() {
         return;
       }
       applyImportedText(text);
+      setImportFileName(file.name);
     } catch (error) {
       if (uploadSequence !== uploadSequenceRef.current) {
         return;
@@ -130,6 +136,7 @@ export default function App() {
         unresolved: [],
         errors: [error instanceof Error ? error.message : "Unable to read file"],
       });
+      setImportFileName(null);
       setSelectedId(null);
     }
   };
@@ -149,34 +156,33 @@ export default function App() {
           reproducedLab={selectedGamut?.reproducedLab ?? null}
           onSelect={setSelectedId}
         />
+        <div className="scene-toolbar">
+          <CxfImportButton fileName={importFileName} error={importError} onFileUpload={handleFileUpload} />
+          <GamutPanel
+            selection={gamut.selection}
+            pendingSelection={gamut.pendingSelection}
+            error={gamut.error}
+            info={gamut.info}
+            counts={gamutCounts}
+            showShell={showShell}
+            pointMode={pointMode}
+            onSelectPreset={gamut.selectPreset}
+            onUploadProfile={gamut.uploadProfile}
+            onShowShellChange={setShowShell}
+            onPointModeChange={setPointMode}
+          />
+        </div>
       </section>
       <aside className="tool-panel" aria-label="Color standard controls">
         <ControlsPanel
-          importResult={importResult}
           selectedColor={selectedColor}
           formula={formula}
           tolerance={tolerance}
           manualLabInputs={manualLabInputs}
           comparisonResult={comparisonResult}
           closestMatches={closestMatches}
-          gamutPanel={
-            <GamutPanel
-              selection={gamut.selection}
-              pendingSelection={gamut.pendingSelection}
-              error={gamut.error}
-              info={gamut.info}
-              counts={gamutCounts}
-              showShell={showShell}
-              pointMode={pointMode}
-              onSelectPreset={gamut.selectPreset}
-              onUploadProfile={gamut.uploadProfile}
-              onShowShellChange={setShowShell}
-              onPointModeChange={setPointMode}
-            />
-          }
           selectedGamut={selectedGamut}
           deviceChannelNames={gamut.info?.channelNames ?? null}
-          onFileUpload={handleFileUpload}
           onFormulaChange={setFormula}
           onManualLabChange={setManualLabInputs}
           onSelectColor={setSelectedId}
