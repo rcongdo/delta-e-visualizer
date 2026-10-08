@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { findClosestMatches } from "./color/closestMatches";
 import { deltaE } from "./color/deltaE";
 import { parseCxf } from "./cxf/parseCxf";
 import ColorList from "./components/ColorList";
@@ -53,6 +54,10 @@ export default function App() {
       inTolerance: value <= tolerance,
     };
   }, [formula, manualLab, selectedColor, tolerance]);
+  const closestMatches = useMemo(
+    () => (manualLab && importResult.colors.length > 0 ? findClosestMatches(importResult.colors, manualLab, formula, 3) : null),
+    [formula, importResult.colors, manualLab],
+  );
   const gamutResults = useMemo(
     () =>
       gamut.reproductions ? computeGamutResults(importResult.colors, gamut.reproductions, formula, tolerance) : null,
@@ -153,6 +158,7 @@ export default function App() {
           tolerance={tolerance}
           manualLabInputs={manualLabInputs}
           comparisonResult={comparisonResult}
+          closestMatches={closestMatches}
           gamutPanel={
             <GamutPanel
               selection={gamut.selection}
@@ -173,6 +179,7 @@ export default function App() {
           onFileUpload={handleFileUpload}
           onFormulaChange={setFormula}
           onManualLabChange={setManualLabInputs}
+          onSelectColor={setSelectedId}
           onToleranceChange={setTolerance}
         />
         <ColorList
